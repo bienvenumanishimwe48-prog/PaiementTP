@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <script src="paie.js" defer></script>
+  <title>Formulaire de Commande & Paiement</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      background-color: #f4f7f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 450px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #333;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    .total-box {
+      background-color: #eef9f1;
+      padding: 12px;
+      border-radius: 5px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: #2e7d32;
+      margin-bottom: 20px;
+    }
+    .btn-whatsapp {
+      width: 100%;
+      background-color: #25D366;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-whatsapp:hover {
+      background-color: #1ebd56;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Commander un Produit</h2>
+    <form id="orderForm">
+      
+      <!-- Nom et Prénom -->
+      <div class="form-group">
+        <label for="nom">Nom :</label>
+        <input type="text" id="nom" placeholder="Votre nom" required>
+      </div>
+
+      <div class="form-group">
+        <label for="prenom">Prénom :</label>
+        <input type="text" id="prenom" placeholder="Votre prénom" required>
+      </div>
+
+      <!-- Produits -->
+      <div class="form-group">
+        <label for="produit">Sélectionnez le produit :</label>
+        <select id="produit">
+          <option value="T-Shirt" data-price="20">T-Shirt — 20 $</option>
+          <option value="Chaussures Sport" data-price="50">Chaussures Sport — 50 $</option>
+          <option value="Sac à dos" data-price="35">Sac à dos — 35 $</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="quantite">Quantité :</label>
+        <input type="number" id="quantite" value="1" min="1">
+      </div>
+
+      <!-- Calcul du Total -->
+      <div class="total-box">
+        Total à payer : <span id="totalPrix">20</span> $
+      </div>
+
+      <button type="submit" class="btn-whatsapp">
+        Envoyer la commande sur WhatsApp
+      </button>
+
+    </form>
+  </div>
+</body>
+</html>
