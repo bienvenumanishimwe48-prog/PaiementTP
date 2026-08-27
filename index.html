@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="paie.js" defer></script>
   <title>Formulaire de Commande & Paiement</title>
   <style>
@@ -12,6 +13,7 @@
     body {
       background-color: #f4f7f6;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       padding: 20px;
@@ -47,15 +49,11 @@
       border-radius: 5px;
       font-size: 14px;
     }
-    .total-box {
-      background-color: #eef9f1;
-      padding: 12px;
-      border-radius: 5px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-      color: #2e7d32;
-      margin-bottom: 20px;
+    .error-msg {
+      color: #d32f2f;
+      font-size: 13px;
+      display: none;
+      margin-top: 5px;
     }
     .btn-whatsapp {
       width: 100%;
@@ -71,19 +69,55 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
+      margin-top: 15px;
     }
     .btn-whatsapp:hover {
       background-color: #1ebd56;
+    }
+    
+    /* Dynamic Weather Box Styles */
+    .meteo-box {
+      background-color: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+      transition: all 0.5s ease;
+    }
+    .meteo-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #1565c0;
+      margin-bottom: 5px;
+    }
+    .meteo-climat {
+      font-size: 15px;
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    .meteo-info {
+      font-size: 14px;
+      color: #333;
     }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>Commander un Produit</h2>
+    
+    <!-- Dynamic Weather Widget -->
+    <div class="meteo-box" id="meteoCard">
+      <div class="meteo-title">Météo en direct (Bujumbura)</div>
+      <div class="meteo-climat" id="climatTexte"><span id="meteoIcon">⏳</span> Chargement...</div>
+      <div class="meteo-info">
+        Température : <strong id="temp">--</strong> °C | Vent : <strong id="vent">--</strong> km/h
+      </div>
+    </div>
+
+    <h2>Formulaire de Commande</h2>
     <form id="orderForm">
       
-      <!-- Nom et Prénom -->
       <div class="form-group">
         <label for="nom">Nom :</label>
         <input type="text" id="nom" placeholder="Votre nom" required>
@@ -94,31 +128,57 @@
         <input type="text" id="prenom" placeholder="Votre prénom" required>
       </div>
 
-      <!-- Produits -->
+      <div class="form-group">
+        <label for="pays">Pays d'Afrique :</label>
+        <select id="pays" required>
+          <option value="">Chargement des pays africains...</option>
+        </select>
+      </div>
+
       <div class="form-group">
         <label for="produit">Sélectionnez le produit :</label>
-        <select id="produit">
-          <option value="T-Shirt" data-price="20">T-Shirt — 20 $</option>
-          <option value="Chaussures Sport" data-price="50">Chaussures Sport — 50 $</option>
-          <option value="Sac à dos" data-price="35">Sac à dos — 35 $</option>
+        <select id="produit" required>
+          <option value="T-Shirt">T-Shirt</option>
+          <option value="Chaussures Sport">Chaussures Sport</option>
+          <option value="Sac à dos">Sac à dos</option>
         </select>
       </div>
 
       <div class="form-group">
         <label for="quantite">Quantité :</label>
-        <input type="number" id="quantite" value="1" min="1">
+        <input type="number" id="quantite" value="1" min="1" required>
       </div>
 
-      <!-- Calcul du Total -->
-      <div class="total-box">
-        Total à payer : <span id="totalPrix">20</span> $
+      <div class="form-group">
+        <label for="devise">Devise de règlement :</label>
+        <select id="devise" required>
+          <option value="">-- Choisir une devise --</option>
+          <option value="BIF (Franc Burundais)">BIF (Franc Burundais)</option>
+          <option value="USD (Dollar US)">USD (Dollar US)</option>
+          <option value="EUR (Euro)">EUR (Euro)</option>
+        </select>
       </div>
+
+      <div class="form-group">
+        <label for="paiement">Mode de paiement :</label>
+        <select id="paiement" required>
+          <option value="">-- Choisir un moyen de paiement --</option>
+          <option value="LumiCash">LumiCash</option>
+          <option value="EcoCash">EcoCash</option>
+          <option value="BANCOBU eNOT">BANCOBU eNOT</option>
+          <option value="Stripe (Carte)">Stripe (Carte Bancaire)</option>
+          <option value="Afriregister">Afriregister Gateway</option>
+        </select>
+      </div>
+
+      <div id="errorBox" class="error-msg"></div>
 
       <button type="submit" class="btn-whatsapp">
-        Envoyer la commande sur WhatsApp
+        Valider le paiement & Envoyer
       </button>
 
     </form>
   </div>
+
 </body>
 </html>
