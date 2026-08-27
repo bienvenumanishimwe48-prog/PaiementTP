@@ -1,5 +1,5 @@
-// ⚠️ Collez ici l'URL obtenue lors du déploiement Google Apps Script
-const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbw-NZflK3eIZwP69ub4CykDxtNHXDXpS3mbuUwkmuEdlIWyuhqJa-cBt9lE-Z5JXNxQ/exec";
+// ⚠️ Collez ici votre URL Google Apps Script
+const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbyM-MTOQACeHUAByfZE02QeZdM4wb-MI5YbMCygzmarJ6T_UVk0rDpabGd3_XVyTNLG/exec";
 
 const NUMERO_WHATSAPP = "25767740624"; 
 
@@ -123,24 +123,24 @@ chargerMeteoDynamique();
 btnRefreshMeteo.addEventListener("click", chargerMeteoDynamique);
 
 // ==========================================
-// 3. FONCTION ENREGISTREMENT GOOGLE SHEETS
+// 3. FONCTION ENREGISTREMENT DANS GOOGLE SHEETS
 // ==========================================
 async function enregistrerCommandeDansGoogleSheets(donnees) {
   try {
     await fetch(URL_GOOGLE_SHEETS, {
       method: "POST",
-      mode: "no-cors", // Nécessaire pour éviter les blocages de sécurité CORS Google
+      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(donnees)
     });
     console.log("Commande enregistrée avec succès dans Google Sheets !");
   } catch (err) {
-    console.error("Erreur lors de l'enregistrement dans Google Sheets :", err);
+    console.error("Erreur d'enregistrement Google Sheets :", err);
   }
 }
 
 // ==========================================
-// 4. VALIDATION & PAIEMENT
+// 4. VALIDATION ET SOUMISSION
 // ==========================================
 function validerFormulaire() {
   errorBox.style.display = "none";
@@ -170,97 +170,87 @@ function afficherSucces(msg) {
   errorBox.style.display = "none";
 }
 
-// Clic bouton Paiement en ligne
+// Bouton Payer en Ligne
 btnPayerEnLigne.addEventListener("click", async function() {
   if (!validerFormulaire()) return;
 
-  const nomComplet = inputNomComplet.value.trim();
-  const pays = selectPays.value;
-  const produit = selectProduit.value;
-  const quantite = inputQuantite.value;
-  const devise = selectDevise.value;
-  const modePaiement = selectPaiement.value;
+  const maintenant = new Date();
+  const dateFormatee = maintenant.toLocaleDateString('fr-FR') + " " + maintenant.toLocaleTimeString('fr-FR');
   const referenceCommande = "CMD-" + Date.now();
 
   const donneesCommande = {
+    dateHeure: dateFormatee,
     reference: referenceCommande,
-    nomComplet: nomComplet,
-    pays: pays,
-    produit: produit,
-    quantite: quantite,
-    devise: devise,
-    modePaiement: modePaiement,
-    statut: "Validé (En ligne)"
+    nomComplet: inputNomComplet.value.trim(),
+    pays: selectPays.value,
+    produit: selectProduit.value,
+    quantite: inputQuantite.value,
+    devise: selectDevise.value,
+    modePaiement: selectPaiement.value
   };
 
-  if (modePaiement === "stripe") {
+  if (selectPaiement.value === "stripe") {
     btnPayerEnLigne.disabled = true;
     btnPayerEnLigne.textContent = "⏳ Traitement Stripe...";
 
-    const { token, error } = await stripe.createToken(cardElement, { name: nomComplet });
+    const { token, error } = await stripe.createToken(cardElement, { name: donneesCommande.nomComplet });
 
     if (error) {
       afficherErreur("Erreur carte Stripe : " + error.message);
       btnPayerEnLigne.disabled = false;
       btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
     } else {
-      // Enregistrement automatique dans Google Sheets
       await enregistrerCommandeDansGoogleSheets(donneesCommande);
 
       afficherSucces(`
-        🎉 <strong>PAIEMENT STRIPE VALIDÉ ET ENREGISTRÉ !</strong><br>
-        Client : <strong>${nomComplet}</strong><br>
-        Commande : <strong>${quantite}x ${produit}</strong><br>
+        🎉 <strong>PAIEMENT VALIDÉ ET ENREGISTRÉ !</strong><br>
+        Client : <strong>${donneesCommande.nomComplet}</strong><br>
+        Produit : <strong>${donneesCommande.quantite}x ${donneesCommande.produit}</strong><br>
         Référence : <strong>${referenceCommande}</strong>
       `);
       btnPayerEnLigne.disabled = false;
       btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
     }
   } else {
-    // Enregistrement automatique dans Google Sheets
     await enregistrerCommandeDansGoogleSheets(donneesCommande);
 
     afficherSucces(`
       🎉 <strong>PAIEMENT VALIDÉ ET ENREGISTRÉ !</strong><br>
-      Client : <strong>${nomComplet}</strong><br>
-      Mode : <strong>${modePaiement}</strong> (${devise})<br>
+      Client : <strong>${donneesCommande.nomComplet}</strong><br>
+      Mode : <strong>${donneesCommande.modePaiement}</strong> (${donneesCommande.devise})<br>
       Référence : <strong>${referenceCommande}</strong>
     `);
   }
 });
 
-// Clic bouton WhatsApp
+// Bouton WhatsApp
 btnEnvoyerWhatsApp.addEventListener("click", async function() {
   if (!validerFormulaire()) return;
 
-  const nomComplet = inputNomComplet.value.trim();
-  const pays = selectPays.value;
-  const produit = selectProduit.value;
-  const quantite = inputQuantite.value;
-  const devise = selectDevise.value;
-  const modePaiement = selectPaiement.value;
+  const maintenant = new Date();
+  const dateFormatee = maintenant.toLocaleDateString('fr-FR') + " " + maintenant.toLocaleTimeString('fr-FR');
   const referenceCommande = "CMD-" + Date.now();
 
   const donneesCommande = {
+    dateHeure: dateFormatee,
     reference: referenceCommande,
-    nomComplet: nomComplet,
-    pays: pays,
-    produit: produit,
-    quantite: quantite,
-    devise: devise,
-    modePaiement: modePaiement,
-    statut: "Envoyé via WhatsApp"
+    nomComplet: inputNomComplet.value.trim(),
+    pays: selectPays.value,
+    produit: selectProduit.value,
+    quantite: inputQuantite.value,
+    devise: selectDevise.value,
+    modePaiement: selectPaiement.value + " (WhatsApp)"
   };
 
-  // Enregistrement automatique dans Google Sheets
+  // Enregistrement dans Google Sheets
   await enregistrerCommandeDansGoogleSheets(donneesCommande);
 
   const msg = `*NOUVELLE COMMANDE DIRECTE*\n\n` +
-              `👤 *Client :* ${nomComplet}\n` +
-              `🌍 *Pays :* ${pays}\n` +
-              `🛍️ *Produit :* ${produit} (x${quantite})\n` +
-              `💱 *Devise :* ${devise}\n` +
-              `💳 *Mode :* ${modePaiement}\n` +
+              `👤 *Client :* ${donneesCommande.nomComplet}\n` +
+              `🌍 *Pays :* ${donneesCommande.pays}\n` +
+              `🛍️ *Produit :* ${donneesCommande.produit} (x${donneesCommande.quantite})\n` +
+              `💱 *Devise :* ${donneesCommande.devise}\n` +
+              `💳 *Mode :* ${donneesCommande.modePaiement}\n` +
               `🔖 *Référence :* ${referenceCommande}`;
 
   window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(msg)}`, "_blank");
