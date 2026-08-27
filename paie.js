@@ -13,6 +13,7 @@ const cardElement = elements.create("card", {
 });
 cardElement.mount("#card-element");
 
+const inputNomComplet = document.getElementById("nomComplet");
 const selectPays = document.getElementById("pays");
 const selectProduit = document.getElementById("produit");
 const inputQuantite = document.getElementById("quantite");
@@ -73,7 +74,7 @@ async function chargerTousLesPays() {
 chargerTousLesPays();
 
 // ==========================================
-// 2. API MÉTÉO DYNAMIQUE AUTO-ACTUALISÉE
+// 2. API MÉTÉO DYNAMIQUE
 // ==========================================
 const LATITUDE = -3.3822;  // Bujumbura
 const LONGITUDE = 29.3644;
@@ -89,13 +90,14 @@ function interpreterCodeMeteo(code) {
 }
 
 async function chargerMeteoDynamique() {
-  // L'ajout du timestamp force l'API à donner la donnée la plus fraîche sans cache
-  const timestamp = Date.now();
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current_weather=true&timezone=auto&_=${timestamp}`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current_weather=true`;
 
   try {
-    const reponse = await fetch(url, { cache: "no-store" });
+    const reponse = await fetch(url);
+    if (!reponse.ok) throw new Error(`Erreur HTTP: ${reponse.status}`);
+
     const data = await reponse.json();
+    if (!data.current_weather) throw new Error("Données météo absentes");
 
     const temp = Math.round(data.current_weather.temperature);
     const vent = Math.round(data.current_weather.windspeed);
@@ -111,23 +113,17 @@ async function chargerMeteoDynamique() {
     meteoCard.style.backgroundColor = infoClimat.bg;
     meteoCard.style.borderColor = infoClimat.border;
 
-    // Affichage de l'heure exacte du changement
-    const heureActuelle = new Date().toLocaleTimeString('fr-FR');
-    document.getElementById("meteoTime").textContent = `Dernière mise à jour : ${heureActuelle}`;
+    const maintenant = new Date();
+    document.getElementById("meteoTime").textContent = `Dernière mise à jour : ${maintenant.toLocaleTimeString('fr-FR')}`;
 
   } catch (erreur) {
     document.getElementById("climatTexte").textContent = "⚠️ Météo indisponible";
   }
 }
 
-// Chargement initial
 chargerMeteoDynamique();
-
-// Bouton pour actualiser manuellement
 btnRefreshMeteo.addEventListener("click", chargerMeteoDynamique);
-
-// Actualisation automatique en arrière-plan (toutes les 15 secondes)
-setInterval(chargerMeteoDynamique, 15000);
+setInterval(chargerMeteoDynamique, 30000);
 
 // ==========================================
 // 3. VALIDATION & PAIEMENT
@@ -136,13 +132,12 @@ function validerFormulaire() {
   errorBox.style.display = "none";
   successBox.style.display = "none";
 
-  const nom = document.getElementById("nom").value.trim();
-  const prenom = document.getElementById("prenom").value.trim();
+  const nomComplet = inputNomComplet.value.trim();
   const pays = selectPays.value;
   const devise = selectDevise.value;
   const paiement = selectPaiement.value;
 
-  if (!nom || !prenom || !pays || !devise || !paiement) {
+  if (!nomComplet || !pays || !devise || !paiement) {
     afficherErreur("Veuillez remplir tous les champs du formulaire.");
     return false;
   }
@@ -164,8 +159,7 @@ function afficherSucces(msg) {
 btnPayerEnLigne.addEventListener("click", async function() {
   if (!validerFormulaire()) return;
 
-  const nom = document.getElementById("nom").value.trim();
-  const prenom = document.getElementById("prenom").value.trim();
+  const nomComplet = inputNomComplet.value.trim();
   const produit = selectProduit.value;
   const quantite = inputQuantite.value;
   const devise = selectDevise.value;
@@ -176,7 +170,7 @@ btnPayerEnLigne.addEventListener("click", async function() {
     btnPayerEnLigne.disabled = true;
     btnPayerEnLigne.textContent = "⏳ Traitement Stripe...";
 
-    const { token, error } = await stripe.createToken(cardElement, { name: `${prenom} ${nom}` });
+    const { token, error } = await stripe.createToken(cardElement, { name: nomComplet });
 
     if (error) {
       afficherErreur("Erreur carte Stripe : " + error.message);
@@ -185,7 +179,8 @@ btnPayerEnLigne.addEventListener("click", async function() {
     } else {
       afficherSucces(`
         🎉 <strong>PAIEMENT STRIPE VALIDÉ AVEC SUCCÈS !</strong><br>
-        Transaction pour <strong>${quantite}x ${produit}</strong>.<br>
+        Client : <strong>${nomComplet}</strong><br>
+        Commande : <strong>${quantite}x ${produit}</strong><br>
         Token : <code>${token.id}</code><br>
         Référence : <strong>${referenceCommande}</strong>
       `);
@@ -195,7 +190,7 @@ btnPayerEnLigne.addEventListener("click", async function() {
   } else {
     afficherSucces(`
       🎉 <strong>PAIEMENT EN LIGNE VALIDÉ !</strong><br>
-      Nom : <strong>${prenom} ${nom}</strong><br>
+      Client : <strong>${nomComplet}</strong><br>
       Mode : <strong>${modePaiement}</strong> (${devise})<br>
       Référence : <strong>${referenceCommande}</strong>
     `);
@@ -205,8 +200,7 @@ btnPayerEnLigne.addEventListener("click", async function() {
 btnEnvoyerWhatsApp.addEventListener("click", function() {
   if (!validerFormulaire()) return;
 
-  const nom = document.getElementById("nom").value.trim();
-  const prenom = document.getElementById("prenom").value.trim();
+  const nomComplet = inputNomComplet.value.trim();
   const pays = selectPays.value;
   const produit = selectProduit.value;
   const quantite = inputQuantite.value;
@@ -215,7 +209,7 @@ btnEnvoyerWhatsApp.addEventListener("click", function() {
   const referenceCommande = "CMD-" + Date.now();
 
   const msg = `*NOUVELLE COMMANDE DIRECTE*\n\n` +
-              `👤 *Client :* ${nom} ${prenom}\n` +
+              `👤 *Client :* ${nomComplet}\n` +
               `🌍 *Pays :* ${pays}\n` +
               `🛍️ *Produit :* ${produit} (x${quantite})\n` +
               `💱 *Devise :* ${devise}\n` +
