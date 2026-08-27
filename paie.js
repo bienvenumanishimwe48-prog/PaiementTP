@@ -1,3 +1,6 @@
+// ⚠️ Collez ici l'URL obtenue lors du déploiement Google Apps Script
+const URL_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbw-NZflK3eIZwP69ub4CykDxtNHXDXpS3mbuUwkmuEdlIWyuhqJa-cBt9lE-Z5JXNxQ/exec";
+
 const NUMERO_WHATSAPP = "25767740624"; 
 
 // Initialisation Stripe Elements
@@ -55,12 +58,7 @@ async function chargerTousLesPays() {
       selectPays.appendChild(option);
     });
   } catch (erreur) {
-    const listePaysSecours = [
-      "Burundi", "Rwanda", "République Démocratique du Congo", "Tanzanie", "Ouganda", "Kenya",
-      "Afrique du Sud", "Algérie", "Allemagne", "Angola", "Belgique", "Cameroun", "Canada", 
-      "Chine", "Côte d'Ivoire", "Égypte", "Espagne", "États-Unis", "France", "Gabon", "Maroc", 
-      "Nigeria", "Royaume-Uni", "Sénégal", "Suisse", "Tchad", "Togo", "Tunisie"
-    ];
+    const listePaysSecours = ["Burundi", "Rwanda", "République Démocratique du Congo", "Tanzanie", "Ouganda", "Kenya", "France", "Canada", "États-Unis", "Belgique"];
     selectPays.innerHTML = '<option value="">-- Sélectionnez votre pays --</option>';
     listePaysSecours.sort().forEach(pays => {
       const option = document.createElement("option");
@@ -74,9 +72,9 @@ async function chargerTousLesPays() {
 chargerTousLesPays();
 
 // ==========================================
-// 2. API MÉTÉO DYNAMIQUE
+// 2. API MÉTÉO DYNAMIQUE (Bujumbura)
 // ==========================================
-const LATITUDE = -3.3822;  // Bujumbura
+const LATITUDE = -3.3822;
 const LONGITUDE = 29.3644;
 
 function interpreterCodeMeteo(code) {
@@ -123,10 +121,26 @@ async function chargerMeteoDynamique() {
 
 chargerMeteoDynamique();
 btnRefreshMeteo.addEventListener("click", chargerMeteoDynamique);
-setInterval(chargerMeteoDynamique, 30000);
 
 // ==========================================
-// 3. VALIDATION & PAIEMENT
+// 3. FONCTION ENREGISTREMENT GOOGLE SHEETS
+// ==========================================
+async function enregistrerCommandeDansGoogleSheets(donnees) {
+  try {
+    await fetch(URL_GOOGLE_SHEETS, {
+      method: "POST",
+      mode: "no-cors", // Nécessaire pour éviter les blocages de sécurité CORS Google
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(donnees)
+    });
+    console.log("Commande enregistrée avec succès dans Google Sheets !");
+  } catch (err) {
+    console.error("Erreur lors de l'enregistrement dans Google Sheets :", err);
+  }
+}
+
+// ==========================================
+// 4. VALIDATION & PAIEMENT
 // ==========================================
 function validerFormulaire() {
   errorBox.style.display = "none";
@@ -156,15 +170,28 @@ function afficherSucces(msg) {
   errorBox.style.display = "none";
 }
 
+// Clic bouton Paiement en ligne
 btnPayerEnLigne.addEventListener("click", async function() {
   if (!validerFormulaire()) return;
 
   const nomComplet = inputNomComplet.value.trim();
+  const pays = selectPays.value;
   const produit = selectProduit.value;
   const quantite = inputQuantite.value;
   const devise = selectDevise.value;
   const modePaiement = selectPaiement.value;
   const referenceCommande = "CMD-" + Date.now();
+
+  const donneesCommande = {
+    reference: referenceCommande,
+    nomComplet: nomComplet,
+    pays: pays,
+    produit: produit,
+    quantite: quantite,
+    devise: devise,
+    modePaiement: modePaiement,
+    statut: "Validé (En ligne)"
+  };
 
   if (modePaiement === "stripe") {
     btnPayerEnLigne.disabled = true;
@@ -177,19 +204,24 @@ btnPayerEnLigne.addEventListener("click", async function() {
       btnPayerEnLigne.disabled = false;
       btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
     } else {
+      // Enregistrement automatique dans Google Sheets
+      await enregistrerCommandeDansGoogleSheets(donneesCommande);
+
       afficherSucces(`
-        🎉 <strong>PAIEMENT STRIPE VALIDÉ AVEC SUCCÈS !</strong><br>
+        🎉 <strong>PAIEMENT STRIPE VALIDÉ ET ENREGISTRÉ !</strong><br>
         Client : <strong>${nomComplet}</strong><br>
         Commande : <strong>${quantite}x ${produit}</strong><br>
-        Token : <code>${token.id}</code><br>
         Référence : <strong>${referenceCommande}</strong>
       `);
       btnPayerEnLigne.disabled = false;
       btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
     }
   } else {
+    // Enregistrement automatique dans Google Sheets
+    await enregistrerCommandeDansGoogleSheets(donneesCommande);
+
     afficherSucces(`
-      🎉 <strong>PAIEMENT EN LIGNE VALIDÉ !</strong><br>
+      🎉 <strong>PAIEMENT VALIDÉ ET ENREGISTRÉ !</strong><br>
       Client : <strong>${nomComplet}</strong><br>
       Mode : <strong>${modePaiement}</strong> (${devise})<br>
       Référence : <strong>${referenceCommande}</strong>
@@ -197,7 +229,8 @@ btnPayerEnLigne.addEventListener("click", async function() {
   }
 });
 
-btnEnvoyerWhatsApp.addEventListener("click", function() {
+// Clic bouton WhatsApp
+btnEnvoyerWhatsApp.addEventListener("click", async function() {
   if (!validerFormulaire()) return;
 
   const nomComplet = inputNomComplet.value.trim();
@@ -207,6 +240,20 @@ btnEnvoyerWhatsApp.addEventListener("click", function() {
   const devise = selectDevise.value;
   const modePaiement = selectPaiement.value;
   const referenceCommande = "CMD-" + Date.now();
+
+  const donneesCommande = {
+    reference: referenceCommande,
+    nomComplet: nomComplet,
+    pays: pays,
+    produit: produit,
+    quantite: quantite,
+    devise: devise,
+    modePaiement: modePaiement,
+    statut: "Envoyé via WhatsApp"
+  };
+
+  // Enregistrement automatique dans Google Sheets
+  await enregistrerCommandeDansGoogleSheets(donneesCommande);
 
   const msg = `*NOUVELLE COMMANDE DIRECTE*\n\n` +
               `👤 *Client :* ${nomComplet}\n` +
