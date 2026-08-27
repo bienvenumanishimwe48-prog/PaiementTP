@@ -1,155 +1,209 @@
 const NUMERO_WHATSAPP = "25767740624"; 
 
+// Initialisation Stripe Elements
+const STRIPE_PUBLIC_KEY = "pk_test_51PxExampleYourPublicKeyHere"; 
+const stripe = Stripe(STRIPE_PUBLIC_KEY);
+const elements = stripe.elements();
+
+const cardElement = elements.create("card", {
+  style: {
+    base: { fontSize: "14px", color: "#32325d", "::placeholder": { color: "#aab7c4" } },
+    invalid: { color: "#fa755a" }
+  }
+});
+cardElement.mount("#card-element");
+
 const selectPays = document.getElementById("pays");
 const selectProduit = document.getElementById("produit");
 const inputQuantite = document.getElementById("quantite");
 const selectDevise = document.getElementById("devise");
 const selectPaiement = document.getElementById("paiement");
+const stripeCardContainer = document.getElementById("stripeCardContainer");
+
 const errorBox = document.getElementById("errorBox");
-const form = document.getElementById("orderForm");
+const successBox = document.getElementById("successBox");
+const btnPayerEnLigne = document.getElementById("btnPayerEnLigne");
+const btnEnvoyerWhatsApp = document.getElementById("btnEnvoyerWhatsApp");
+const btnRefreshMeteo = document.getElementById("btnRefreshMeteo");
+
+selectPaiement.addEventListener("change", function() {
+  stripeCardContainer.style.display = (this.value === "stripe") ? "block" : "none";
+});
 
 // ==========================================
-// 1. API LISTE DES PAYS D'AFRIQUE
+// 1. API LISTE COMPLÈTE PAYS
 // ==========================================
-async function chargerPaysAfrique() {
-  const urlAPI = "https://restcountries.com/v3.1/region/africa";
-
+async function chargerTousLesPays() {
   try {
-    const reponse = await fetch(urlAPI);
-    if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
-
+    const reponse = await fetch("https://restcountries.com/v3.1/all");
     const paysData = await reponse.json();
 
-    // Tri alphabétique basé sur le nom en français
     paysData.sort((a, b) => {
       const nomA = a.translations?.fra?.common || a.name.common;
       const nomB = b.translations?.fra?.common || b.name.common;
       return nomA.localeCompare(nomB, 'fr');
     });
 
-    selectPays.innerHTML = '<option value="">-- Sélectionnez un pays d\'Afrique --</option>';
-
+    selectPays.innerHTML = '<option value="">-- Sélectionnez votre pays --</option>';
     paysData.forEach(country => {
       const nomPays = country.translations?.fra?.common || country.name.common;
       const option = document.createElement("option");
       option.value = nomPays;
       option.textContent = nomPays;
-      
-      if (nomPays === "Burundi") {
-        option.selected = true;
-      }
+      if (nomPays === "Burundi") option.selected = true;
       selectPays.appendChild(option);
     });
-
   } catch (erreur) {
-    console.error("Erreur API Pays :", erreur);
-    selectPays.innerHTML = `
-      <option value="">-- Sélectionnez un pays --</option>
-      <option value="Burundi" selected>Burundi</option>
-      <option value="Rwanda">Rwanda</option>
-      <option value="RDC">République Démocratique du Congo</option>
-      <option value="Ouganda">Ouganda</option>
-      <option value="Tanzanie">Tanzanie</option>
-      <option value="Kenya">Kenya</option>
-    `;
+    const listePaysSecours = [
+      "Burundi", "Rwanda", "République Démocratique du Congo", "Tanzanie", "Ouganda", "Kenya",
+      "Afrique du Sud", "Algérie", "Allemagne", "Angola", "Belgique", "Cameroun", "Canada", 
+      "Chine", "Côte d'Ivoire", "Égypte", "Espagne", "États-Unis", "France", "Gabon", "Maroc", 
+      "Nigeria", "Royaume-Uni", "Sénégal", "Suisse", "Tchad", "Togo", "Tunisie"
+    ];
+    selectPays.innerHTML = '<option value="">-- Sélectionnez votre pays --</option>';
+    listePaysSecours.sort().forEach(pays => {
+      const option = document.createElement("option");
+      option.value = pays;
+      option.textContent = pays;
+      if (pays === "Burundi") option.selected = true;
+      selectPays.appendChild(option);
+    });
   }
 }
-
-chargerPaysAfrique();
+chargerTousLesPays();
 
 // ==========================================
-// 2. MÉTÉO EN TEMPS RÉEL (SYNCHRONISÉE & AUTOMATIQUE)
+// 2. API MÉTÉO DYNAMIQUE AUTO-ACTUALISÉE
 // ==========================================
 const LATITUDE = -3.3822;  // Bujumbura
 const LONGITUDE = 29.3644;
 
-// Fonction de traduction du WMO Weathercode
 function interpreterCodeMeteo(code) {
-  if (code === 0) {
-    return { texte: "Ensoleillé / Ciel Dégagé", icon: "☀️", bg: "#fffde7", border: "#ffe082" };
-  } else if (code >= 1 && code <= 3) {
-    return { texte: "Partiellement Nuageux", icon: "⛅", bg: "#e3f2fd", border: "#90caf9" };
-  } else if (code === 45 || code === 48) {
-    return { texte: "Brouillard", icon: "🌫️", bg: "#eceff1", border: "#b0bec5" };
-  } else if (code >= 51 && code <= 67) {
-    return { texte: "Pluie Légère / Bruine", icon: "🌦️", bg: "#e8eaf6", border: "#9fa8da" };
-  } else if (code >= 80 && code <= 82) {
-    return { texte: "Averses de Pluie", icon: "🌧️", bg: "#e1f5fe", border: "#81d4fa" };
-  } else if (code >= 95 && code <= 99) {
-    return { texte: "Orage", icon: "⛈️", bg: "#f3e5f5", border: "#ce93d8" };
-  } else {
-    return { texte: "Nuageux / Variable", icon: "🌤️", bg: "#e3f2fd", border: "#90caf9" };
-  }
+  if (code === 0) return { texte: "Ensoleillé / Ciel Dégagé", icon: "☀️", bg: "#fffde7", border: "#ffe082" };
+  if (code >= 1 && code <= 3) return { texte: "Partiellement Nuageux", icon: "⛅", bg: "#e3f2fd", border: "#90caf9" };
+  if (code === 45 || code === 48) return { texte: "Brouillard", icon: "🌫️", bg: "#eceff1", border: "#b0bec5" };
+  if (code >= 51 && code <= 67) return { texte: "Pluie Légère", icon: "🌦️", bg: "#e8eaf6", border: "#9fa8da" };
+  if (code >= 80 && code <= 82) return { texte: "Averses de Pluie", icon: "🌧️", bg: "#e1f5fe", border: "#81d4fa" };
+  if (code >= 95 && code <= 99) return { texte: "Orage", icon: "⛈️", bg: "#f3e5f5", border: "#ce93d8" };
+  return { texte: "Nuageux / Variable", icon: "🌤️", bg: "#e3f2fd", border: "#90caf9" };
 }
 
 async function chargerMeteoDynamique() {
-  // timezone=auto assure l'heure locale exacte, et le timestamp contourne le cache navigateur
-  const timestamp = new Date().getTime();
+  // L'ajout du timestamp force l'API à donner la donnée la plus fraîche sans cache
+  const timestamp = Date.now();
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current_weather=true&timezone=auto&_=${timestamp}`;
-  
+
   try {
     const reponse = await fetch(url, { cache: "no-store" });
     const data = await reponse.json();
-    
+
     const temp = Math.round(data.current_weather.temperature);
     const vent = Math.round(data.current_weather.windspeed);
-    const weatherCode = data.current_weather.weathercode;
+    const codeClimat = data.current_weather.weathercode;
 
-    // Interpréter le climat exact renvoyé par le serveur
-    const infoClimat = interpreterCodeMeteo(weatherCode);
-
-    // Mise à jour des valeurs HTML
     document.getElementById("temp").textContent = temp;
     document.getElementById("vent").textContent = vent;
+
+    const infoClimat = interpreterCodeMeteo(codeClimat);
     document.getElementById("climatTexte").innerHTML = `${infoClimat.icon} ${infoClimat.texte}`;
 
-    // Modification dynamique de l'apparence du widget selon le climat
     const meteoCard = document.getElementById("meteoCard");
     meteoCard.style.backgroundColor = infoClimat.bg;
     meteoCard.style.borderColor = infoClimat.border;
 
+    // Affichage de l'heure exacte du changement
+    const heureActuelle = new Date().toLocaleTimeString('fr-FR');
+    document.getElementById("meteoTime").textContent = `Dernière mise à jour : ${heureActuelle}`;
+
   } catch (erreur) {
-    console.error("Erreur météo :", erreur);
     document.getElementById("climatTexte").textContent = "⚠️ Météo indisponible";
   }
 }
 
-// Premier chargement au lancement
+// Chargement initial
 chargerMeteoDynamique();
 
-// Actualisation automatique toutes les 60 secondes (1 minute)
-setInterval(chargerMeteoDynamique, 60000);
+// Bouton pour actualiser manuellement
+btnRefreshMeteo.addEventListener("click", chargerMeteoDynamique);
+
+// Actualisation automatique en arrière-plan (toutes les 15 secondes)
+setInterval(chargerMeteoDynamique, 15000);
 
 // ==========================================
-// 3. LOGIQUE DE VALIDATION ET ENVOI
+// 3. VALIDATION & PAIEMENT
 // ==========================================
-function validerPaiement(pays, devise, paiement) {
+function validerFormulaire() {
   errorBox.style.display = "none";
-  errorBox.textContent = "";
+  successBox.style.display = "none";
 
-  if (!pays) {
-    afficherErreur("Veuillez sélectionner un pays d'Afrique.");
-    return false;
-  }
-  if (!devise) {
-    afficherErreur("Veuillez choisir une devise de règlement.");
-    return false;
-  }
-  if (!paiement) {
-    afficherErreur("Veuillez sélectionner un mode de paiement validé.");
-    return false;
-  }
+  const nom = document.getElementById("nom").value.trim();
+  const prenom = document.getElementById("prenom").value.trim();
+  const pays = selectPays.value;
+  const devise = selectDevise.value;
+  const paiement = selectPaiement.value;
 
+  if (!nom || !prenom || !pays || !devise || !paiement) {
+    afficherErreur("Veuillez remplir tous les champs du formulaire.");
+    return false;
+  }
   return true;
 }
 
-function afficherErreur(message) {
-  errorBox.textContent = message;
+function afficherErreur(msg) {
+  errorBox.textContent = msg;
   errorBox.style.display = "block";
+  successBox.style.display = "none";
 }
 
-form.addEventListener("submit", function(e) {
-  e.preventDefault();
+function afficherSucces(msg) {
+  successBox.innerHTML = msg;
+  successBox.style.display = "block";
+  errorBox.style.display = "none";
+}
+
+btnPayerEnLigne.addEventListener("click", async function() {
+  if (!validerFormulaire()) return;
+
+  const nom = document.getElementById("nom").value.trim();
+  const prenom = document.getElementById("prenom").value.trim();
+  const produit = selectProduit.value;
+  const quantite = inputQuantite.value;
+  const devise = selectDevise.value;
+  const modePaiement = selectPaiement.value;
+  const referenceCommande = "CMD-" + Date.now();
+
+  if (modePaiement === "stripe") {
+    btnPayerEnLigne.disabled = true;
+    btnPayerEnLigne.textContent = "⏳ Traitement Stripe...";
+
+    const { token, error } = await stripe.createToken(cardElement, { name: `${prenom} ${nom}` });
+
+    if (error) {
+      afficherErreur("Erreur carte Stripe : " + error.message);
+      btnPayerEnLigne.disabled = false;
+      btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
+    } else {
+      afficherSucces(`
+        🎉 <strong>PAIEMENT STRIPE VALIDÉ AVEC SUCCÈS !</strong><br>
+        Transaction pour <strong>${quantite}x ${produit}</strong>.<br>
+        Token : <code>${token.id}</code><br>
+        Référence : <strong>${referenceCommande}</strong>
+      `);
+      btnPayerEnLigne.disabled = false;
+      btnPayerEnLigne.textContent = "💳 Valider et Payer en ligne";
+    }
+  } else {
+    afficherSucces(`
+      🎉 <strong>PAIEMENT EN LIGNE VALIDÉ !</strong><br>
+      Nom : <strong>${prenom} ${nom}</strong><br>
+      Mode : <strong>${modePaiement}</strong> (${devise})<br>
+      Référence : <strong>${referenceCommande}</strong>
+    `);
+  }
+});
+
+btnEnvoyerWhatsApp.addEventListener("click", function() {
+  if (!validerFormulaire()) return;
 
   const nom = document.getElementById("nom").value.trim();
   const prenom = document.getElementById("prenom").value.trim();
@@ -158,22 +212,15 @@ form.addEventListener("submit", function(e) {
   const quantite = inputQuantite.value;
   const devise = selectDevise.value;
   const modePaiement = selectPaiement.value;
+  const referenceCommande = "CMD-" + Date.now();
 
-  if (!validerPaiement(pays, devise, modePaiement)) {
-    return;
-  }
+  const msg = `*NOUVELLE COMMANDE DIRECTE*\n\n` +
+              `👤 *Client :* ${nom} ${prenom}\n` +
+              `🌍 *Pays :* ${pays}\n` +
+              `🛍️ *Produit :* ${produit} (x${quantite})\n` +
+              `💱 *Devise :* ${devise}\n` +
+              `💳 *Mode :* ${modePaiement}\n` +
+              `🔖 *Référence :* ${referenceCommande}`;
 
-  const message = `*COMMANDES ET PAIEMENT VALIDÉS*\n\n` +
-                  `👤 *Nom :* ${nom}\n` +
-                  `👤 *Prénom :* ${prenom}\n` +
-                  `🌍 *Pays (Afrique) :* ${pays}\n` +
-                  `🛍️ *Produit :* ${produit}\n` +
-                  `🔢 *Quantité :* ${quantite}\n` +
-                  `💱 *Devise :* ${devise}\n` +
-                  `💳 *Mode de paiement :* ${modePaiement}\n\n` +
-                  `Bonjour, ma commande est validée. Merci de procéder au traitement.`;
-
-  const urlWhatsApp = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(message)}`;
-
-  window.open(urlWhatsApp, "_blank");
+  window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(msg)}`, "_blank");
 });
